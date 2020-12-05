@@ -1,13 +1,19 @@
 use std::io;
 use std::fs::File;
 use std::io::Read;
+use nom::IResult;
+use nom::combinator::map;
+use nom::character::complete::digit1;
+
+
 
 fn main() {
-    let passwords = filename_to_string("src/input.txt");
+    let input = slurp::read_all_to_string("input").unwrap();
+
     let mut counter: u32 = 0;
     let mut counter_valid = 0;
 
-    for password in passwords.unwrap().lines() {
+    for password in input.lines() {
         let mut pattern: Vec<&str> = password.split("-").collect();
         let min = *pattern.get(0).unwrap();
         pattern = (*pattern.get(1).unwrap()).split_whitespace().collect();
@@ -34,11 +40,4 @@ fn main() {
         // print!("{}", first_correct);
     }
     println!("Number of wrong Passwords: {}\n Number of correct Passwords: {}", counter, counter_valid);
-}
-
-fn filename_to_string(s: &str) -> io::Result<String> {
-    let mut file = File::open(s)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
 }
