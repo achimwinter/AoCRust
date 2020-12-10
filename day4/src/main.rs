@@ -84,20 +84,6 @@ fn check_pid(value: &str) -> bool {
     Regex::new(r"^\d\d\d\d\d\d\d\d\d$").unwrap().is_match(value)
 }
 
-// fn parse_string(mut values: &mut HashMap<&str, &str>, field: &str) -> String {
-//     values.get(field).is_some().to_string()
-// }
-
-// fn parse_num(mut values: &mut HashMap<&str, &str>, field: &str) -> Option<u32> {
-//     const RADIX: u32 = 10;
-//     values.get(field)
-//         .map(|str| str.chars()
-//             .filter(|c| c.is_numeric())
-//             .map(|c| c.to_digit(RADIX).unwrap())
-//             .sum::<u32>()
-//         )
-// }
-
 fn get_count(filename: &str, check_values: bool) -> u32 {
     slurp::read_all_to_string(filename)
         .unwrap()
