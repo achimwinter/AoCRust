@@ -1,84 +1,108 @@
-use anyhow::{Result, Error};
-use nom::{Parser, IResult, Map};
-use nom::character::complete::digit1;
-use nom::combinator::map;
-use nom::bytes::complete::tag;
-use std::iter::FromIterator;
+use std::collections::HashMap;
+use std::ops::Deref;
+use regex::Regex;
 
 fn main() {
-    let passports = Passports::read_from_file("input");
+    let first = get_count("input", false);
+    let second = get_count("input", true);
 
-    println!("{:?}", passports);
+    println!("First : {}\n Second: {}", first, second);
 }
 
-#[derive(Debug)]
-struct Passport {
-    birth_year: u16,
-    issue_year: u16,
-    expriration_year: u16,
-    height: u16,
-    hair_color: String,
-    eye_color: String,
-    passport_id: u32,
-    country_id: Option<u16>,
-}
 
-impl Passport {
-    fn create_from_string(_lines: &str) -> Result<Self> {
-        let input = lines.join(",");
-        let (input, birth_year) = parse_num(input);
-        // let (input, _) = tag(":")(input)?;
-        // let (input, issue_year) = parse_num(input);
-        // let (input, _) =
-        Ok(Passport {
-            birth_year: 0,
-            issue_year: 0,
-            expriration_year: 0,
-            height: 0,
-            hair_color: "".to_string(),
-            eye_color: "".to_string(),
-            passport_id: 0,
-            country_id: None
-        })
+fn is_valid(lines: &str, check_values: bool) -> bool {
+    let mut values: HashMap<&str, &str> = HashMap::new();
+    let valid_keys = ["ecl", "pid", "eyr", "hcl", "byr", "iyr", "hgt"];
+
+    for pair in lines.split(|c| c == ' ' || c == '\n') {
+        let mut pit = pair.split( ':');
+        let field = pit.next().unwrap();
+        let value = pit.next().unwrap();
+        values.insert(field, value);
     }
-}
 
-#[derive(Debug)]
-struct Passports {
-    passports: Vec<Passport>,
-}
-
-impl FromIterator<Passport> for Passports {
-    fn from_iter<I: IntoIterator<Item=Passport>>(iter: I) -> Self {
-        let mut passports:Vec<Passport> = Vec::new();
-
-        for passport in iter {
-            passports.push(passport);
-        }
-
-        Self {
-            passports,
+    for key in valid_keys.iter() {
+        if values.contains_key(key.deref()) {
+            if check_values {
+                let value = values.get(key.deref()).unwrap();
+                if match key.deref() {
+                    "ecl" => check_ecl(value),
+                    "pid" => check_pid(value),
+                    "eyr" => check_eyr(value),
+                    "hcl" => check_hcl(value),
+                    "byr" => check_byr(value),
+                    "iyr" => check_iyr(value),
+                    "hgt" => check_hgt(value),
+                    "cid" => continue,
+                    &_ => panic!("Unknown Key")
+                } {
+                } else {
+                    return false
+                }
+            }
+        } else {
+            return false;
         }
     }
+    true
 }
 
-
-impl Passports {
-    fn read_from_file(filename: &str) -> Result<Self>{
-        let passports: Vec<Passport> = slurp::read_all_to_string(filename)
-            .unwrap()
-            .split("\n\n")
-            .map(|pass_lines| Passport::create_from_string(pass_lines).unwrap())
-            .collect();
-
-        Ok(Self { passports })
+fn check_hgt(value: &str) -> bool {
+    let regex = Regex::new(r"^(\d+)(cm|in)$").unwrap();
+    if !regex.is_match(value) {
+        return false
+    } else {
+        let caps = regex.captures(value).unwrap();
+        let n: i32 = (&caps[1]).parse().unwrap();
+        let unit: &str = &caps[2];
+        (unit == "cm" && n >= 150 && n <= 193) || (unit == "in" && n >= 59 && n <= 76)
     }
 }
 
-
-fn parse_num(input: &str) -> IResult<&str, usize> {
-    map(digit1, |digit_str: &str| {
-        digit_str.parse::<usize>().unwrap()
-    })(input)
+fn check_iyr(value: &str) -> bool {
+    (2010..=2020).contains(&value.parse().unwrap())
 }
 
+fn check_byr(value: &str) -> bool {
+    (1920..=2002).contains(&value.parse().unwrap())
+}
+
+fn check_hcl(value: &str) -> bool {
+    Regex::new(r"^#[0-9a-f]{6}$").unwrap().is_match(value)
+}
+
+fn check_eyr(value: &str) -> bool {
+    (2020..=2030).contains(&value.parse().unwrap())
+}
+
+fn check_ecl(value: &str) -> bool {
+    let colors = vec!["amb", "blu", "brn", "gry", "grn", "hzl", "oth"];
+    colors.contains(&value)
+}
+
+fn check_pid(value: &str) -> bool {
+    Regex::new(r"^\d\d\d\d\d\d\d\d\d$").unwrap().is_match(value)
+}
+
+// fn parse_string(mut values: &mut HashMap<&str, &str>, field: &str) -> String {
+//     values.get(field).is_some().to_string()
+// }
+
+// fn parse_num(mut values: &mut HashMap<&str, &str>, field: &str) -> Option<u32> {
+//     const RADIX: u32 = 10;
+//     values.get(field)
+//         .map(|str| str.chars()
+//             .filter(|c| c.is_numeric())
+//             .map(|c| c.to_digit(RADIX).unwrap())
+//             .sum::<u32>()
+//         )
+// }
+
+fn get_count(filename: &str, check_values: bool) -> u32 {
+    slurp::read_all_to_string(filename)
+        .unwrap()
+        .split("\n\n")
+        .map(|lines| is_valid(lines, check_values))
+        .filter(|p| p == &true)
+        .count() as u32
+}
